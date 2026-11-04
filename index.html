@@ -19,6 +19,9 @@ font-size:38px;line-height:1.35;font-weight:700;text-shadow:0 0 6px #000,0 0 6px
 #list{position:fixed;top:72px;left:0;right:0;bottom:0;z-index:3;background:#000;overflow:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;align-content:start}
 #list button{background:#1a1a1a;color:#fff;border:3px solid transparent;border-radius:12px;padding:0;text-align:left;cursor:pointer;font-family:inherit;overflow:hidden}
 #list button:focus,#list button:hover{border-color:#ffd54f;outline:0}
+#list .card{display:flex;flex-direction:column;gap:6px}
+#list .wait img,#list .wait span{opacity:.5}
+#list .del{padding:8px;text-align:center;font-size:17px;background:#3a1a1a}
 #list img{width:100%;display:block}
 #list span{display:block;padding:10px;font-size:18px;line-height:1.3}
 #msg{position:fixed;top:90px;left:0;right:0;text-align:center;z-index:5;font-size:22px;color:#ffd54f}
@@ -58,13 +61,25 @@ async function showList(){
   try{
     var g=getGas(),r=await fetch(g+(g.indexOf('?')>-1?'&':'?')+'list=1'),j=await r.json();
     if(!j.ok)throw j.error;
-    msg(j.items.length?'':'தயாரான வீடியோ இல்லை — கணினியில் 📺 பட்டன் அழுத்தவும்');
+    msg(j.warn?'⚠ '+j.warn:(j.items.length?'':'வீடியோ இல்லை — போனில் YouTube-ல் "TV Tamil" playlist-ல் Save செய்யவும்'));
     j.items.forEach(function(x){
+      var c=document.createElement('div');c.className='card';
       var b=document.createElement('button');
       b.innerHTML='<img src="https://i.ytimg.com/vi/'+x.id+'/mqdefault.jpg" alt=""><span></span>';
-      b.querySelector('span').textContent=x.title||x.id;
-      b.onclick=function(){$('url').value='https://youtu.be/'+x.id;L.style.display='none';$('go').click()};
-      L.appendChild(b);
+      b.querySelector('span').textContent=(x.ready===false?'⏳ ':'✅ ')+(x.title||x.id);
+      if(x.ready===false)c.className='card wait';
+      b.onclick=function(){if(x.ready===false){msg('⏳ இதற்கு கணினியில் YouTube-ல் 📺 அழுத்தி சப்டைட்டில் தயார் செய்யவும்');return}
+        $('url').value='https://youtu.be/'+x.id;L.style.display='none';$('go').click()};
+      var d=document.createElement('button');d.className='del';d.textContent='🗑 நீக்கு';var tm=null;
+      d.onclick=async function(){
+        if(d.dataset.sure!=='1'){d.dataset.sure='1';d.textContent='❓ உறுதி — மறுபடி அழுத்து';
+          tm=setTimeout(function(){d.dataset.sure='';d.textContent='🗑 நீக்கு'},4000);return}
+        clearTimeout(tm);d.textContent='நீக்குகிறது…';
+        try{var r=await fetch(g+(g.indexOf('?')>-1?'&':'?')+'del='+x.id),jj=await r.json();
+          if(!jj.ok)throw jj.error;LS('sub_'+x.id,'');c.remove()}
+        catch(e){d.textContent='❌ பிழை'}
+      };
+      c.appendChild(b);c.appendChild(d);L.appendChild(c);
     });
     var f=L.querySelector('button');if(f)f.focus();
   }catch(e){msg('பட்டியல் பிழை: '+e)}
